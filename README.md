@@ -18,3 +18,13 @@ Aplikacja webowa do zarządzania zadaniami użytkownika w chmurze. Użytkownik m
 | Prezentacja (Frontend SPA) | React 19 + Vite | Azure Static Web Apps (lub App Service) | HTTPS 443 |
 | Aplikacja (Backend API) | .NET 9 Web API | Azure App Service | HTTPS 443 |
 | Dane (Database) | Azure SQL | Azure SQL Database | TDS/SQL TCP 1433 |
+
+## Status Projektu
+- [x] **Artefakt 1:** Architektura i struktura folderów.
+- [x] **Artefakt 2:** Środowisko wielokontenerowe uruchomione lokalnie (Docker Compose).
+
+## Co działa lokalnie (Docker Compose)
+- Frontend uruchamia się pod: http://localhost:5173
+- Backend API działa pod: http://localhost:8080
+- Baza danych (SQL Server – lokalny odpowiednik Azure SQL) działa na porcie: 1433
+- Komunikacja: Frontend → Backend przez REST/JSON
