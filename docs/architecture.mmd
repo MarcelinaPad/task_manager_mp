@@ -1,0 +1,12 @@
+flowchart LR
+  user([User<br/>Korzysta z aplikacji<br/>w przegladarce])
+
+  fe[Frontend<br/>React + Vite SPA<br/>Port lokalnie: 5173]
+
+  api[Backend API<br/>.NET Web API<br/>Port lokalnie: 8080]
+
+  db[(Baza danych<br/>Azure SQL Database<br/>Port: 1433)]
+
+  user -->|HTTPS| fe
+  fe -->|REST| api
+  api -->|SQL| db
