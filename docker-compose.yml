@@ -17,28 +17,20 @@ services:
     volumes:
       - ./backend:/src
     command: >
-      sh -c "dotnet --info &&
-             dotnet new webapi -n TaskManager.Api -o TaskManager.Api --force &&
-             dotnet run --project TaskManager.Api --urls http://0.0.0.0:8080"
+      sh -c "dotnet restore TaskManager.Api/TaskManager.Api.csproj &&
+             dotnet run --project TaskManager.Api/TaskManager.Api.csproj --urls http://0.0.0.0:8080"
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
       - db
 
   frontend:
-    image: node:20-alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: taskmanager-frontend
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
-    command: >
-      sh -c "npm create vite@latest . -- --template react-ts --force &&
-             npm install &&
-             npm run dev -- --host 0.0.0.0 --port 5173"
-    environment:
-      - VITE_API_URL=http://localhost:8080
     ports:
-      - "5173:5173"
+      - "8080:8080"
     depends_on:
       - backend
 
