@@ -1,8 +1,14 @@
+using Microsoft.Data.SqlClient;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+builder.Services.AddControllers();
 
-// CORS – pozwól Reactowi (localhost:5173) wołać API
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -13,39 +19,35 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Włącz CORS (przed endpointami)
 app.UseCors();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.MapControllers();
+
+
+app.MapGet("/api/db-test", async (IConfiguration config) =>
 {
-    app.MapOpenApi();
-}
+    var connStr = config.GetConnectionString("DefaultConnection");
 
-// Wyłączamy na potrzeby kontenera (żeby nie robiło redirectów/ostrzeżeń)
-// app.UseHttpsRedirection();
+    if (string.IsNullOrWhiteSpace(connStr))
+        return Results.Problem("Brak connection string: DefaultConnection");
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    try
+    {
+        await using var conn = new SqlConnection(connStr);
+        await conn.OpenAsync();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast(
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        )
-    ).ToArray();
+        await using var cmd = new SqlCommand("SELECT 1", conn);
+        var result = await cmd.ExecuteScalarAsync();
 
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+        return Results.Ok(new { status = "DB_OK", result });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"DB connection failed: {ex.Message}");
+    }
+});
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

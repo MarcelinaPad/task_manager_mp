@@ -23,6 +23,8 @@ services:
       - "8081:8080"
     depends_on:
       - db
+    environment:
+    - ConnectionStrings__DefaultConnection=Server=db,1433;Database=TaskManagerDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;  
 
   frontend:
     build:
