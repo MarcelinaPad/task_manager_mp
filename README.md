@@ -24,6 +24,7 @@ Aplikacja webowa do zarządzania zadaniami użytkownika w chmurze. Użytkownik m
 - [x] **Artefakt 2:** Środowisko wielokontenerowe uruchomione lokalnie (Docker Compose).
 - [x] **Artefakt 3:** Działająca warstwa prezentacji (React + Vite) + komunikacja z API (Axios GET).
 - [x] **Artefakt 4:** Działająca warstwa logiki backendu (.NET + Swagger CRUD + SQL Connection).
+- [x] **Artefakt 5: DTO, migracje, trwałość danych i dodawanie zadań w React
 
 ## Co działa lokalnie (Docker Compose)
 - Frontend uruchamia się pod: http://localhost:5173
