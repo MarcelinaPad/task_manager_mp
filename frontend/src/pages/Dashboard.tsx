@@ -1,65 +1,59 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios, { AxiosError } from "axios";
+import "./Dashboard.css";
+
+type Priority = "Low" | "Medium" | "High";
 
 type TaskItem = {
   id: string;
   title: string;
-  priority: "Low" | "Medium" | "High";
+  priority: Priority;
   isDone: boolean;
 };
 
-function getApiBaseUrl(): string {
+function apiBaseUrl(): string {
   const url = import.meta.env.VITE_API_URL as string | undefined;
   if (!url) throw new Error("Brak VITE_API_URL w frontend/.env");
   return url;
 }
 
-function formatApiError(err: unknown): string {
+function errorText(err: unknown): { kind: "ok" | "err" | "warn"; text: string } {
   const e = err as AxiosError<any>;
   const status = e.response?.status;
 
-  // brak odpowiedzi (np. backend nie działa)
-  if (!status) return "Brak odpowiedzi z serwera (network error / backend nie działa).";
+  if (!status) return { kind: "err", text: "Brak odpowiedzi z API (backend nie działa / problem sieci)." };
+  if (status === 400) return { kind: "warn", text: "400 Bad Request – dane nie przeszły walidacji." };
+  if (status === 404) return { kind: "warn", text: "404 Not Found – nie znaleziono zasobu." };
+  if (status >= 500) return { kind: "err", text: "Błąd serwera API (5xx)." };
 
-  if (status === 400) {
-    const data = e.response?.data;
-    const validation = data?.errors;
+  return { kind: "warn", text: `Błąd API: ${status}` };
+}
 
-    // typowy format błędów walidacji z ASP.NET
-    if (validation) {
-      const messages = Object.values(validation).flat().join(" | ");
-      return `400 Bad Request: ${messages}`;
-    }
-
-    return `400 Bad Request: ${data?.detail ?? "Niepoprawne dane wejściowe"}`;
-  }
-
-  if (status === 404) return "404 Not Found: Nie znaleziono zasobu (np. zły ID).";
-  if (status === 500) return "500 Server Error: Błąd po stronie API.";
-
-  return `${status}: ${e.response?.statusText ?? "Błąd API"}`;
+function pillClass(p: Priority) {
+  if (p === "Low") return "pill low";
+  if (p === "Medium") return "pill medium";
+  return "pill high";
 }
 
 export default function Dashboard() {
-  const API = getApiBaseUrl();
+  const API = useMemo(() => apiBaseUrl(), []);
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string>("");
 
   const [title, setTitle] = useState("");
-  const [priority, setPriority] = useState<TaskItem["priority"]>("Medium");
+  const [priority, setPriority] = useState<Priority>("Medium");
+
+  const [msg, setMsg] = useState<{ kind: "ok" | "err" | "warn"; text: string } | null>(null);
 
   const loadTasks = async () => {
     setLoading(true);
-    setMessage("");
-
     try {
       const res = await axios.get<TaskItem[]>(`${API}/api/Tasks`);
       setTasks(res.data);
-      setMessage("✅ 200 OK: Pobrano listę zadań.");
+      setMsg({ kind: "ok", text: "Lista zadań została pobrana ✅" });
     } catch (err) {
-      setMessage("❌ " + formatApiError(err));
+      setMsg(errorText(err));
     } finally {
       setLoading(false);
     }
@@ -70,142 +64,131 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const createTask = async () => {
-    setMessage("");
-
-    // walidacja po stronie klienta (dodatkowo)
+  const addTask = async () => {
+    // walidacja “po stronie UI”
     if (title.trim().length < 3) {
-      setMessage("⚠️ Walidacja klienta: tytuł musi mieć min. 3 znaki.");
+      setMsg({ kind: "warn", text: "Tytuł musi mieć min. 3 znaki." });
       return;
     }
 
     try {
-      // ✅ nie trzymamy "res", jeśli go nie używamy (TS6133 znika)
       await axios.post(`${API}/api/Tasks`, { title, priority });
-
-      setMessage("✅ 201 Created: Dodano zadanie.");
       setTitle("");
+      setMsg({ kind: "ok", text: "Dodano zadanie ✅" });
       await loadTasks();
     } catch (err) {
-      setMessage("❌ " + formatApiError(err));
+      setMsg(errorText(err));
     }
   };
 
   const toggleDone = async (t: TaskItem) => {
-    setMessage("");
-
     try {
       await axios.put(`${API}/api/Tasks/${t.id}`, {
         title: t.title,
         priority: t.priority,
         isDone: !t.isDone,
       });
-
-      setMessage("✅ 204 No Content: Zaktualizowano zadanie (PUT).");
+      setMsg({ kind: "ok", text: "Zaktualizowano zadanie ✅" });
       await loadTasks();
     } catch (err) {
-      setMessage("❌ " + formatApiError(err));
+      setMsg(errorText(err));
     }
   };
 
-  const deleteTask = async (id: string) => {
-    setMessage("");
-
+  const removeTask = async (id: string) => {
     try {
       await axios.delete(`${API}/api/Tasks/${id}`);
-
-      setMessage("✅ 204 No Content: Usunięto zadanie (DELETE).");
+      setMsg({ kind: "ok", text: "Usunięto zadanie ✅" });
       await loadTasks();
     } catch (err) {
-      setMessage("❌ " + formatApiError(err));
-    }
-  };
-
-  const test404 = async () => {
-    setMessage("");
-    try {
-      await axios.get(`${API}/api/Tasks/00000000-0000-0000-0000-000000000000`);
-    } catch (err) {
-      setMessage("🧪 Test 404: " + formatApiError(err));
-    }
-  };
-
-  const test400 = async () => {
-    setMessage("");
-    try {
-      // celowo błędne dane (powinno dać 400)
-      await axios.post(`${API}/api/Tasks`, { title: "a", priority: "SUPER" });
-    } catch (err) {
-      setMessage("🧪 Test 400: " + formatApiError(err));
+      setMsg(errorText(err));
     }
   };
 
   return (
-    <div style={{ padding: 24, fontFamily: "Arial" }}>
-      <h1>Dashboard (walidacja i błędy)</h1>
+    <div className="dashboard">
+      <div className="container">
+        <div className="header">
+          <div className="title">
+            <h1>☁️ Cloud App Dashboard</h1>
+            <p>Dodawaj zadania, ustawiaj priorytety i oznaczaj je jako wykonane.</p>
+          </div>
 
-      <p>
-        <b>API:</b> {API}
-      </p>
+          <div className="badge" title="Adres API z VITE_API_URL">
+            <span>API</span>
+            <code style={{ color: "rgba(255,255,255,0.9)" }}>{API}</code>
+          </div>
+        </div>
 
-      {message && <p>{message}</p>}
+        <div className="card">
+          <div className="formRow">
+            <input
+              className="input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Wpisz nowe zadanie… (min. 3 znaki)"
+            />
 
-      <hr />
+            <select
+              className="select"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as Priority)}
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
 
-      <h2>Dodaj zadanie (POST)</h2>
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Tytuł (min 3 znaki)"
-          style={{ padding: 8, minWidth: 260 }}
-        />
+            <button className="button" onClick={addTask} disabled={loading}>
+              Dodaj zadanie
+            </button>
+          </div>
 
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value as TaskItem["priority"])}
-          style={{ padding: 8 }}
-        >
-          <option value="Low">Low</option>
-          <option value="Medium">Medium</option>
-          <option value="High">High</option>
-        </select>
+          <div className="subRow">
+            <span>
+              {loading ? "Ładowanie..." : `Zadań: ${tasks.length}`}
+            </span>
+            <button className="iconBtn" onClick={loadTasks} disabled={loading} title="Odśwież listę">
+              Odśwież
+            </button>
+          </div>
 
-        <button onClick={createTask} style={{ padding: "8px 12px" }}>
-          Dodaj
-        </button>
+          {msg && <p className={`message ${msg.kind}`}>{msg.text}</p>}
 
-        <button onClick={loadTasks} style={{ padding: "8px 12px" }}>
-          Odśwież (GET)
-        </button>
+          <div className="list">
+            {tasks.map((t) => (
+              <div key={t.id} className={`item ${t.isDone ? "done" : ""}`}>
+                <input
+                  className="check"
+                  type="checkbox"
+                  checked={t.isDone}
+                  onChange={() => toggleDone(t)}
+                  aria-label="Zmień status zadania"
+                />
 
-        <button onClick={test404} style={{ padding: "8px 12px" }}>
-          Test 404
-        </button>
+                <div className="itemTitle">
+                  <div className="name">{t.title}</div>
+                  <div className="meta">
+                    <span className={pillClass(t.priority)}>{t.priority}</span>
+                    <span>•</span>
+                    <span>{t.isDone ? "DONE" : "TODO"}</span>
+                  </div>
+                </div>
 
-        <button onClick={test400} style={{ padding: "8px 12px" }}>
-          Test 400
-        </button>
+                <div className="actions">
+                  <button className="iconBtn" onClick={() => removeTask(t.id)} title="Usuń">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {tasks.length === 0 && !loading && (
+            <p className="message warn">Brak zadań. Dodaj pierwsze zadanie powyżej 🙂</p>
+          )}
+        </div>
       </div>
-
-      <hr />
-
-      <h2>Lista zadań (GET)</h2>
-      {loading && <p>Ładowanie...</p>}
-
-      <ul>
-        {tasks.map((t) => (
-          <li key={t.id} style={{ marginBottom: 8 }}>
-            <b>{t.title}</b> ({t.priority}) — {t.isDone ? "DONE" : "TODO"}{" "}
-            <button onClick={() => toggleDone(t)} style={{ marginLeft: 8 }}>
-              Toggle (PUT)
-            </button>
-            <button onClick={() => deleteTask(t.id)} style={{ marginLeft: 8 }}>
-              Usuń (DELETE)
-            </button>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

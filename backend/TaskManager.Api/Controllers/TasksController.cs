@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
+using TaskManager.Api.Data;
+using TaskManager.Api.Dtos;
+using TaskManager.Api.Models;
 
 namespace TaskManager.Api.Controllers;
 
@@ -7,81 +10,83 @@ namespace TaskManager.Api.Controllers;
 [Route("api/[controller]")]
 public class TasksController : ControllerBase
 {
-    private static readonly List<TaskItem> _tasks = new()
-    {
-        new TaskItem(Guid.NewGuid(), "Zadanie #1", "High", false),
-        new TaskItem(Guid.NewGuid(), "Zadanie #2", "Medium", true),
-    };
+    private readonly AppDbContext _db;
 
-    // GET /api/tasks (lista) -> 200
+    public TasksController(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    
     [HttpGet]
-    public ActionResult<IEnumerable<TaskItem>> GetAll() => Ok(_tasks);
-
-    // GET /api/tasks/{id} (szczegóły) -> 200 albo 404
-    [HttpGet("{id:guid}")]
-    public ActionResult<TaskItem> GetById(Guid id)
+    public async Task<ActionResult<IEnumerable<TaskReadDto>>> GetAll()
     {
-        var task = _tasks.FirstOrDefault(t => t.Id == id);
+        var tasks = await _db.Tasks
+            .AsNoTracking()
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => new TaskReadDto(t.Id, t.Title, t.Priority, t.IsDone))
+            .ToListAsync();
+
+        return Ok(tasks);
+    }
+
+    
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<TaskReadDto>> GetById(Guid id)
+    {
+        var task = await _db.Tasks
+            .AsNoTracking()
+            .Where(t => t.Id == id)
+            .Select(t => new TaskReadDto(t.Id, t.Title, t.Priority, t.IsDone))
+            .FirstOrDefaultAsync();
+
         return task is null ? NotFound() : Ok(task);
     }
 
-    // POST /api/tasks (dodaj) -> 201 albo 400
+    
     [HttpPost]
-    public ActionResult<TaskItem> Create([FromBody] CreateTaskRequest request)
+    public async Task<ActionResult<TaskReadDto>> Create([FromBody] TaskCreateDto dto)
     {
-        // Jeśli request jest niepoprawny, [ApiController] sam zwróci 400
-        var task = new TaskItem(Guid.NewGuid(), request.Title, request.Priority, false);
-        _tasks.Add(task);
-
-        return CreatedAtAction(nameof(GetById), new { id = task.Id }, task);
-    }
-
-    // PUT /api/tasks/{id} (edytuj) -> 204 albo 404 albo 400
-    [HttpPut("{id:guid}")]
-    public IActionResult Update(Guid id, [FromBody] UpdateTaskRequest request)
-    {
-        // Jeśli request jest niepoprawny, [ApiController] sam zwróci 400
-        var idx = _tasks.FindIndex(t => t.Id == id);
-        if (idx == -1) return NotFound();
-
-        _tasks[idx] = _tasks[idx] with
+        var entity = new TaskEntity
         {
-            Title = request.Title,
-            Priority = request.Priority,
-            IsDone = request.IsDone
+            Title = dto.Title,
+            Priority = dto.Priority,
+            IsDone = false,
+            CreatedAt = DateTime.UtcNow
         };
 
+        _db.Tasks.Add(entity);
+        await _db.SaveChangesAsync();
+
+        var readDto = new TaskReadDto(entity.Id, entity.Title, entity.Priority, entity.IsDone);
+        return CreatedAtAction(nameof(GetById), new { id = entity.Id }, readDto);
+    }
+
+    
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] TaskUpdateDto dto)
+    {
+        var entity = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+        if (entity is null) return NotFound();
+
+        entity.Title = dto.Title;
+        entity.Priority = dto.Priority;
+        entity.IsDone = dto.IsDone;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
         return NoContent();
     }
 
-    // DELETE /api/tasks/{id} (usuń) -> 204 albo 404
+    
     [HttpDelete("{id:guid}")]
-    public IActionResult Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id)
     {
-        var removed = _tasks.RemoveAll(t => t.Id == id);
-        return removed == 0 ? NotFound() : NoContent();
+        var entity = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+        if (entity is null) return NotFound();
+
+        _db.Tasks.Remove(entity);
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 }
-
-public record TaskItem(Guid Id, string Title, string Priority, bool IsDone);
-
-
-public record CreateTaskRequest(
-    [property: Required, MinLength(3, ErrorMessage = "Title musi mieć min. 3 znaki")]
-    string Title,
-
-    [property: Required, RegularExpression("^(Low|Medium|High)$",
-        ErrorMessage = "Priority musi być: Low, Medium lub High")]
-    string Priority
-);
-
-public record UpdateTaskRequest(
-    [property: Required, MinLength(3, ErrorMessage = "Title musi mieć min. 3 znaki")]
-    string Title,
-
-    [property: Required, RegularExpression("^(Low|Medium|High)$",
-        ErrorMessage = "Priority musi być: Low, Medium lub High")]
-    string Priority,
-
-    bool IsDone
-);
