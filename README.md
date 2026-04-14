@@ -37,3 +37,20 @@ Aplikacja webowa do zarządzania zadaniami użytkownika w chmurze. Użytkownik m
 - Backend API działa pod: http://localhost:8080
 - Baza danych (SQL Server – lokalny odpowiednik Azure SQL) działa na porcie: 1433
 - Komunikacja: Frontend → Backend przez REST/JSON
+
+## Deployment Azure
+
+Aplikacja została wdrożona w Microsoft Azure.
+
+### Backend (.NET API)
+Backend działa w Azure App Service:
+https://cloud-task-manager-api-marcelina-b0d8fhbegsb9hmh8.germanywestcentral-01.azurewebsites.net/swagger
+
+### Frontend (React)
+Frontend działa w Azure App Service:
+https://cloud-task-manager-frontend-marcelina-chddf2a4dhajhgb8.germanywestcentral-01.azurewebsites.net
+
+### Baza danych
+Baza danych została utworzona w Azure SQL Database. Schemat bazy został zmigrowany przy użyciu Entity Framework Core komendą:
+
+dotnet ef database update
