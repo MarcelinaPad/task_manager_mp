@@ -1,8 +1,20 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TaskManager.Api.Data;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsProduction())
+{
+    var vaultName = builder.Configuration["KeyVaultName"];
+
+    if (!string.IsNullOrWhiteSpace(vaultName))
+    {
+        var keyVaultEndpoint = new Uri($"https://{vaultName}.vault.azure.net/");
+        builder.Configuration.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
+    }
+}
 
 builder.Services.AddControllers();
 
@@ -19,9 +31,17 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
+var connectionString = builder.Environment.IsProduction()
+    ? builder.Configuration["DbConnectionString"]
+    : builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Connection string was not found.");
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString));
 
 var app = builder.Build();
 
@@ -40,12 +60,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 
-app.MapGet("/api/db-test", async (IConfiguration config) =>
+app.MapGet("/api/db-test", async (IConfiguration config, IWebHostEnvironment env) =>
 {
-    var connStr = config.GetConnectionString("DefaultConnection");
+    var connStr = env.IsProduction()
+        ? config["DbConnectionString"]
+        : config.GetConnectionString("DefaultConnection");
 
     if (string.IsNullOrWhiteSpace(connStr))
-        return Results.Problem("Brak connection string: DefaultConnection");
+        return Results.Problem("Brak connection string");
 
     try
     {

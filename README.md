@@ -54,3 +54,9 @@ https://cloud-task-manager-frontend-marcelina-chddf2a4dhajhgb8.germanywestcentra
 Baza danych została utworzona w Azure SQL Database. Schemat bazy został zmigrowany przy użyciu Entity Framework Core komendą:
 
 dotnet ef database update
+
+### Ulepszenia bezpieczeństwa
+- Dane dostępowe do bazy danych zostały usunięte z kodu źródłowego
+- Skonfigurowano Azure Key Vault
+- Włączono Managed Identity dla App Service
+- Backend odczytuje sekret `DbConnectionString` z Azure Key Vault

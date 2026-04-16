@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/b7c665f7-3bdc-4854-bda7-32a18d42b717/resourceGroups/appsvc_windows_germanywestcentral/providers/Microsoft.Web/sites/cloud-task-manager-api-marcelina",
+    "appService.deploySubpath": "backend\\TaskManager.Api\\publish"
+}
