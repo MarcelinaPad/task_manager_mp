@@ -42,7 +42,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
 
   const [title, setTitle] = useState("");
-  const [priority, setPriority] = useState<Priority>("Medium");
+  const [priority, setPriority] = useState<Priority>("High");
 
   const [msg, setMsg] = useState<{ kind: "ok" | "err" | "warn"; text: string } | null>(null);
 
@@ -110,7 +110,7 @@ export default function Dashboard() {
       <div className="container">
         <div className="header">
           <div className="title">
-            <h1>☁️ Cloud App Dashboard</h1>
+            <h1 style={{ color: '#FFD54F' }}>☁️ Cloud App Dashboard CI/CD</h1>
             <p>Dodawaj zadania, ustawiaj priorytety i oznaczaj je jako wykonane.</p>
           </div>
 
