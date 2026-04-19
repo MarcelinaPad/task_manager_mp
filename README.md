@@ -60,3 +60,44 @@ dotnet ef database update
 - Skonfigurowano Azure Key Vault
 - Włączono Managed Identity dla App Service
 - Backend odczytuje sekret `DbConnectionString` z Azure Key Vault
+
+## Artefakt 8 – testy i automatyzacja CI/CD
+
+### 8.1 Test jednostkowy xUnit
+W projekcie dodano osobny projekt testowy xUnit: `TaskManager.Api.Tests`.
+
+Zaimplementowano test jednostkowy `NewTask_ShouldNotBeCompleted`, który:
+- tworzy nowy obiekt modelu zadania (`TaskEntity`),
+- ustawia tytuł zadania,
+- sprawdza, czy właściwość `IsDone` ma wartość `false`.
+
+Test potwierdza, że nowe zadanie nie jest domyślnie oznaczane jako wykonane.
+
+### 8.2 Automatyzacja wdrażania
+Skonfigurowano połączenie GitHub z Azure App Service przez Centrum wdrażania (Deployment Center).
+
+Dla backendu i frontendu wygenerowano workflow GitHub Actions, które uruchamiają się po zmianach w gałęzi `main`.
+
+### 8.3 Test pchnięcia (Push Test)
+W celu sprawdzenia automatycznego wdrażania wykonano zmianę wizualną i funkcjonalną we frontendzie:
+- zmieniono nagłówek na `Cloud App Dashboard CI/CD`,
+- zmieniono kolor nagłówka,
+- ustawiono domyślny priorytet nowego zadania na `High`.
+
+Po wykonaniu `git push` workflow GitHub Actions uruchomił się automatycznie i wdrożył nową wersję aplikacji.
+
+### 8.4 Nowa funkcja – usuwanie zadania
+Dodano funkcję usuwania zadania:
+- w backendzie zaimplementowano metodę HTTP `DELETE`,
+- we frontendzie dodano przycisk z ikoną kosza,
+- po kliknięciu zadanie znika z listy.
+
+### Adresy aplikacji
+**Backend (Swagger):**  
+https://cloud-task-manager-api-marcelina-b0d8fhbegsb9hmh8.germanywestcentral-01.azurewebsites.net/swagger
+
+**Test bazy danych:**  
+https://cloud-task-manager-api-marcelina-b0d8fhbegsb9hmh8.germanywestcentral-01.azurewebsites.net/api/db-test
+
+**Frontend:**  
+https://cloud-task-manager-frontend-marcelina-chddf2a4dhajhgb8.germanywestcentral-01.azurewebsites.net/
